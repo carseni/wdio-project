@@ -21,6 +21,7 @@ It targets the [RealWorld backend API](https://github.com/gothinkster/realworld)
 ## 🧩 Folder Structure
 
 wdio-project/
+
 │
 ├── test/
 │ ├── api/
