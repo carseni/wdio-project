@@ -20,22 +20,34 @@ It targets the [RealWorld backend API](https://github.com/gothinkster/realworld)
 
 ## 🧩 Folder Structure
 
-wdio-project/
+wdio-project/ 
+
+├── test/
+
+│ ├── api/
+
+│ │ ├── users.api.spec.js # User registration tests
+
+│ │ ├── login.api.spec.js # Login flow tests
+
+│ │ ├── articles.api.spec.js # Full CRUD tests for articles
+
+│ │ ├── comments.api.spec.js # Comment creation & validation
+
+│ │ └── tags.api.spec.js # Tag list retrieval
+
+│ └── helpers/
+
+│ └── auth.helper.js # Shared user/token setup
 
 │
-├── test/
-│ ├── api/
-│ │ ├── users.api.spec.js # User registration tests
-│ │ ├── login.api.spec.js # Login flow tests
-│ │ ├── articles.api.spec.js # Full CRUD tests for articles
-│ │ ├── comments.api.spec.js # Comment creation & validation
-│ │ └── tags.api.spec.js # Tag list retrieval
-│ └── helpers/
-│ └── auth.helper.js # Shared user/token setup
-│
+
 ├── wdio.conf.api.cjs # WDIO config for API tests
+
 ├── start-dev.ps1 # Script to start backend & run tests
+
 ├── package.json # NPM scripts & dependencies
+
 └── reports/ # Allure test results (auto-generated)
 
 
