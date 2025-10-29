@@ -27,7 +27,6 @@ jobs:
           --health-retries 10
 
     steps:
-      # 🧩 WDIO project (current repo)
       - name: Checkout WDIO project
         uses: actions/checkout@v4
 
@@ -37,10 +36,9 @@ jobs:
           node-version: 20
           cache: npm
 
-      # 🧠 Wait for Postgres
       - name: Wait for Postgres
         run: |
-          echo "Waiting for Postgres to be ready..."
+          echo "Waiting for Postgres..."
           for i in {1..30}; do
             if pg_isready -h localhost -p 5432 -U postgres; then
               echo "✅ Postgres is ready!"
@@ -50,7 +48,6 @@ jobs:
             sleep 2
           done
 
-      # ⚙️ Clone and prepare backend
       - name: Clone Backend
         run: |
           git clone https://github.com/carseni/realworld-backend.git realworld-backend
@@ -62,33 +59,30 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
-      # 🧾 Verify DB migrations
       - name: Verify Database schema
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
           echo "📋 Checking database tables..."
           PGPASSWORD=postgres psql -h localhost -U postgres -d realworld -c "\dt"
-          echo "✅ Database verification completed."
         env:
           PGPASSWORD: postgres
 
-      - name: Start Backend (port 3000)
+      - name: Start Backend (production mode)
         run: |
           cd realworld-backend
-          PORT=3000 npm start &
+          PORT=3000 npx nx run api:serve:production &
           echo "Waiting for API to be ready..."
-          for i in {1..30}; do
+          for i in {1..40}; do
             if curl -s http://localhost:3000/api/tags > /dev/null; then
               echo "✅ API is up!"
               break
             fi
-            echo "⏳ Waiting ($i/30)..."
+            echo "⏳ Waiting ($i/40)..."
             sleep 3
           done
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
-      # 🎨 Clone and build frontend (port 4100 to avoid conflict)
       - name: Clone Frontend
         run: |
           git clone https://github.com/carseni/realworld-ui.git realworld-ui
@@ -96,17 +90,14 @@ jobs:
           npm ci
           PORT=4100 npm run build
 
-      # 🧪 Run WDIO Tests
       - name: Run WDIO Tests (spec + BDD)
         run: |
-          cd wdio-project-main || cd .
           npm ci
           npm run test:all
         env:
           CI: true
           API_URL: http://localhost:3000/api
 
-      # 📊 Upload Allure results
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -115,7 +106,6 @@ jobs:
           path: reports/allure-results/
           if-no-files-found: warn
 
-      # 🧱 Generate Allure HTML report
       - name: Generate Allure report
         if: always()
         run: |
