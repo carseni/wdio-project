@@ -27,9 +27,17 @@ jobs:
           --health-retries 5
 
     steps:
+      # 🧩 WDIO project (current repo)
       - name: Checkout WDIO project
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # ⚙️ Clone and prepare backend
       - name: Clone Backend
         run: |
           git clone https://github.com/carseni/realworld-backend.git realworld-backend
@@ -38,6 +46,8 @@ jobs:
           npx prisma generate
           npx prisma migrate deploy
           npm run build
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
       - name: Start Backend
         run: |
@@ -52,7 +62,10 @@ jobs:
             echo "⏳ Waiting ($i/30)..."
             sleep 3
           done
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
+      # 🎨 Clone and build frontend
       - name: Clone Frontend
         run: |
           git clone https://github.com/carseni/realworld-ui.git realworld-ui
@@ -60,13 +73,8 @@ jobs:
           npm ci
           npm run build
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Run WDIO tests
+      # 🧪 Run WDIO tests
+      - name: Run WDIO Tests (spec + BDD)
         run: |
           cd wdio-project-main || cd .
           npm ci
@@ -75,6 +83,7 @@ jobs:
           CI: true
           API_URL: http://localhost:3001/api
 
+      # 📊 Upload Allure results
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -83,13 +92,14 @@ jobs:
           path: reports/allure-results/
           if-no-files-found: warn
 
+      # 🧱 Generate Allure HTML report
       - name: Generate Allure report
         if: always()
         run: |
           npx allure generate reports/allure-results --clean -o reports/allure-report || true
           if [ ! -f reports/allure-report/index.html ]; then
             mkdir -p reports/allure-report
-            echo "<html><body><h1>Test Run Failed</h1></body></html>" > reports/allure-report/index.html
+            echo "<html><body><h1>Test Run Failed</h1><p>Check job logs for details.</p></body></html>" > reports/allure-report/index.html
           fi
 
       - name: Upload Allure HTML report
