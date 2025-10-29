@@ -1,4 +1,4 @@
-name: CI - Realworld App (Backend + WDIO Tests)
+name: CI - Realworld Stack (Backend + UI + WDIO)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  e2e-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -27,8 +27,38 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout repository
+      - name: Checkout WDIO project
         uses: actions/checkout@v4
+
+      - name: Clone Backend
+        run: |
+          git clone https://github.com/carseni/realworld-backend.git realworld-backend
+          cd realworld-backend
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run build
+
+      - name: Start Backend
+        run: |
+          cd realworld-backend
+          npm start &
+          echo "Waiting for API to be ready..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3001/api/tags > /dev/null; then
+              echo "✅ API is up!"
+              break
+            fi
+            echo "⏳ Waiting ($i/30)..."
+            sleep 3
+          done
+
+      - name: Clone Frontend
+        run: |
+          git clone https://github.com/carseni/realworld-ui.git realworld-ui
+          cd realworld-ui
+          npm ci
+          npm run build
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,64 +66,36 @@ jobs:
           node-version: 20
           cache: npm
 
-      # 🧠 BACKEND
-      - name: Install backend dependencies
+      - name: Run WDIO tests
         run: |
-          cd realworld-backend-main
-          npm ci
-          npx prisma generate
-          npx prisma migrate deploy
-
-      - name: Start backend server
-        run: |
-          cd realworld-backend-main
-          npm start &
-          echo "Waiting for API to be ready..."
-          n=0
-          until [ $n -ge 20 ]; do
-            if curl -s http://localhost:3001/api/tags > /dev/null; then
-              echo "✅ API is up!"
-              break
-            fi
-            n=$((n+1))
-            echo "⏳ Waiting for API... ($n/20)"
-            sleep 3
-          done
-          if [ $n -ge 20 ]; then
-            echo "❌ API failed to start"
-            exit 1
-          fi
-
-      # 🧩 FRONTEND (optional)
-      - name: Install frontend dependencies
-        run: |
-          cd realworld-ui-main
-          npm ci
-          npm run build
-
-      # 🧪 WDIO TESTS (your script)
-      - name: Run tests (spec + BDD)
-        run: |
-          cd wdio-project-main
+          cd wdio-project-main || cd .
           npm ci
           npm run test:all
         env:
           CI: true
           API_URL: http://localhost:3001/api
 
-      # 📊 ALLURE REPORT
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-results
-          path: wdio-project-main/reports/allure-results/
+          path: reports/allure-results/
           if-no-files-found: warn
 
       - name: Generate Allure report
         if: always()
         run: |
-          cd wdio-project-main
           npx allure generate reports/allure-results --clean -o reports/allure-report || true
           if [ ! -f reports/allure-report/index.html ]; then
-            mkdi
+            mkdir -p reports/allure-report
+            echo "<html><body><h1>Test Run Failed</h1></body></html>" > reports/allure-report/index.html
+          fi
+
+      - name: Upload Allure HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: reports/allure-report/
+          if-no-files-found: warn
