@@ -1,4 +1,4 @@
-const { getAuthToken } = require('./test/helpers/auth.helper');
+const { getAuthToken } = require('./helpers/auth.helper');
 
 exports.config = {
   runner: 'local',
