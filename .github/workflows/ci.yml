@@ -55,7 +55,7 @@ jobs:
           npm start &
           echo "Waiting for API to be ready..."
           for i in {1..30}; do
-            if curl -s http://localhost:3001/api/tags > /dev/null; then
+            if curl -s http://localhost:3000/api/tags > /dev/null; then
               echo "✅ API is up!"
               break
             fi
@@ -81,7 +81,7 @@ jobs:
           npm run test:all
         env:
           CI: true
-          API_URL: http://localhost:3001/api
+          API_URL: http://localhost:3000/api
 
       # 📊 Upload Allure results
       - name: Upload Allure results
