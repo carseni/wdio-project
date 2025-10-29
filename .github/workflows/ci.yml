@@ -1,4 +1,4 @@
-name: CI - Realworld Stack (Backend + UI + WDIO)
+name: CI - Realworld Stack (Backend + UI + WDIO + Allure Pages)
 
 on:
   push:
@@ -36,7 +36,6 @@ jobs:
           node-version: 20
           cache: npm
 
-      # 🧠 Wait for Postgres
       - name: Wait for Postgres
         run: |
           echo "Waiting for Postgres..."
@@ -49,7 +48,6 @@ jobs:
             sleep 2
           done
 
-      # ⚙️ Clone and prepare backend
       - name: Clone Backend
         run: |
           git clone https://github.com/carseni/realworld-backend.git realworld-backend
@@ -61,7 +59,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
-      # 🧾 Verify DB migrations
       - name: Verify Database schema
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -70,7 +67,6 @@ jobs:
         env:
           PGPASSWORD: postgres
 
-      # 🚀 Start backend on port 3001
       - name: Start Backend (production mode, port 3001)
         run: |
           cd realworld-backend
@@ -78,7 +74,7 @@ jobs:
           echo "Waiting for API to be ready on port 3001..."
           for i in {1..40}; do
             if curl -s http://localhost:3001/api/tags > /dev/null; then
-              echo "✅ API is up on 3001!"
+              echo "✅ API is up!"
               break
             fi
             echo "⏳ Waiting ($i/40)..."
@@ -87,7 +83,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
-      # 🎨 Frontend build (on 4100 to avoid port clash)
       - name: Clone Frontend
         run: |
           git clone https://github.com/carseni/realworld-ui.git realworld-ui
@@ -95,7 +90,6 @@ jobs:
           npm ci
           PORT=4100 npm run build
 
-      # 🧪 Run WDIO Tests (spec + BDD)
       - name: Run WDIO Tests (spec + BDD)
         run: |
           npm ci
@@ -104,7 +98,6 @@ jobs:
           CI: true
           API_URL: http://localhost:3001/api
 
-      # 📊 Upload Allure results
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -113,7 +106,6 @@ jobs:
           path: reports/allure-results/
           if-no-files-found: warn
 
-      # 🧱 Generate Allure HTML report
       - name: Generate Allure report
         if: always()
         run: |
@@ -130,3 +122,13 @@ jobs:
           name: allure-report
           path: reports/allure-report/
           if-no-files-found: warn
+
+      # 🚀 NEW: Publish Allure report to GitHub Pages
+      - name: Deploy Allure report to GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: reports/allure-report
+          publish_branch: gh-pages
+          force_orphan: true
