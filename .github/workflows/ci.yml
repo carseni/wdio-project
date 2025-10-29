@@ -10,12 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    services:
-      api:
-        image: ghcr.io/realworld-docker/api:latest
-        ports:
-          - 3001:3001
-        options: --health-cmd "curl -f http://localhost:3001/api/health || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -30,10 +24,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Wait for API to be ready
+      - name: Clone and start API server
         run: |
+          # Clone the Conduit API implementation
+          git clone https://github.com/gothinkster/node-express-realworld-example-app.git api
+          cd api
+          npm install
+          # Start API server in background
+          npm start &
+          echo "Waiting for API server to be ready..."
           timeout=30
-          until curl -s http://localhost:3001/api/health > /dev/null; do
+          until curl -s http://localhost:3000/api/tags > /dev/null; do
             if [ $timeout -le 0 ]; then
               echo "API failed to start"
               exit 1
@@ -48,7 +49,8 @@ jobs:
         run: npm run test:all
         env:
           CI: true
-          WDIO_API_URL: http://localhost:3001/api
+          # The API runs on port 3000 by default
+          WDIO_API_URL: http://localhost:3000/api
 
       - name: Upload Allure results
         if: always()
