@@ -22,9 +22,9 @@ jobs:
           POSTGRES_DB: realworld
         options: >-
           --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
+          --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
 
     steps:
       # 🧩 WDIO project (current repo)
@@ -36,6 +36,19 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      # 🧠 Wait for Postgres
+      - name: Wait for Postgres
+        run: |
+          echo "Waiting for Postgres to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U postgres; then
+              echo "✅ Postgres is ready!"
+              break
+            fi
+            echo "⏳ Waiting ($i/30)..."
+            sleep 2
+          done
 
       # ⚙️ Clone and prepare backend
       - name: Clone Backend
@@ -49,10 +62,20 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
-      - name: Start Backend
+      # 🧾 Verify DB migrations
+      - name: Verify Database schema
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          echo "📋 Checking database tables..."
+          PGPASSWORD=postgres psql -h localhost -U postgres -d realworld -c "\dt"
+          echo "✅ Database verification completed."
+        env:
+          PGPASSWORD: postgres
+
+      - name: Start Backend (port 3000)
         run: |
           cd realworld-backend
-          npm start &
+          PORT=3000 npm start &
           echo "Waiting for API to be ready..."
           for i in {1..30}; do
             if curl -s http://localhost:3000/api/tags > /dev/null; then
@@ -65,15 +88,15 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
-      # 🎨 Clone and build frontend
+      # 🎨 Clone and build frontend (port 4100 to avoid conflict)
       - name: Clone Frontend
         run: |
           git clone https://github.com/carseni/realworld-ui.git realworld-ui
           cd realworld-ui
           npm ci
-          npm run build
+          PORT=4100 npm run build
 
-      # 🧪 Run WDIO tests
+      # 🧪 Run WDIO Tests
       - name: Run WDIO Tests (spec + BDD)
         run: |
           cd wdio-project-main || cd .
