@@ -1,4 +1,4 @@
-name: CI - Realworld Stack (Backend + UI + WDIO + Allure Pages)
+name: CI - Realworld Stack (Backend + UI + WDIO + Allure Pages + Seed)
 
 on:
   push:
@@ -48,6 +48,7 @@ jobs:
             sleep 2
           done
 
+      # ⚙️ Backend setup + migrations
       - name: Clone Backend
         run: |
           git clone https://github.com/carseni/realworld-backend.git realworld-backend
@@ -55,10 +56,40 @@ jobs:
           npm ci
           npx prisma generate
           npx prisma migrate deploy
-          npm run build
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
+      # 🌱 Seed database so Article tests work
+      - name: Seed database with test data
+        run: |
+          cd realworld-backend
+          echo "🌱 Seeding database with default user and tags..."
+          node -e "
+            import { PrismaClient } from '@prisma/client';
+            const prisma = new PrismaClient();
+            async function main() {
+              const user = await prisma.user.upsert({
+                where: { email: 'seed_user@mail.com' },
+                update: {},
+                create: {
+                  email: 'seed_user@mail.com',
+                  username: 'seed_user',
+                  password: '123456',
+                  bio: 'Seed user for CI tests',
+                },
+              });
+              await prisma.tag.createMany({
+                data: [{ name: 'seed' }, { name: 'test' }, { name: 'ci' }],
+                skipDuplicates: true,
+              });
+              console.log('✅ Seed complete:', user.email);
+            }
+            main().finally(() => prisma.$disconnect());
+          "
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
+
+      # 🧾 Verify DB tables
       - name: Verify Database schema
         run: |
           sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -67,6 +98,7 @@ jobs:
         env:
           PGPASSWORD: postgres
 
+      # 🚀 Start backend
       - name: Start Backend (port 3001)
         run: |
           cd realworld-backend
@@ -83,6 +115,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
+      # 🎨 Frontend build (port 4100)
       - name: Clone Frontend
         run: |
           git clone https://github.com/carseni/realworld-ui.git realworld-ui
@@ -90,6 +123,7 @@ jobs:
           npm ci
           PORT=4100 npm run build
 
+      # 🧪 WDIO tests
       - name: Run WDIO Tests (spec + BDD)
         run: |
           npm ci
@@ -98,6 +132,7 @@ jobs:
           CI: true
           API_URL: http://localhost:3001/api
 
+      # 📊 Allure results
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -123,9 +158,9 @@ jobs:
           path: reports/allure-report/
           if-no-files-found: warn
 
-      # 🚀 Deploy Allure report to GitHub Pages
+      # 🚀 Deploy to GitHub Pages
       - name: Deploy Allure report to GitHub Pages
-        if: always()
+        if: always() && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -133,7 +168,7 @@ jobs:
           publish_branch: gh-pages
           force_orphan: true
 
-      # 💬 Comment with Allure report link on PRs
+      # 💬 PR comment with live report link
       - name: Comment on Pull Request with Allure Report
         if: ${{ github.event_name == 'pull_request' }}
         uses: marocchino/sticky-pull-request-comment@v2
