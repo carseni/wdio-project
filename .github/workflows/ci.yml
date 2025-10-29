@@ -10,6 +10,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    services:
+      api:
+        image: ghcr.io/realworld-docker/api:latest
+        ports:
+          - 3001:3001
+        options: --health-cmd "curl -f http://localhost:3001/api/health || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,26 +30,48 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Wait for API to be ready
+        run: |
+          timeout=30
+          until curl -s http://localhost:3001/api/health > /dev/null; do
+            if [ $timeout -le 0 ]; then
+              echo "API failed to start"
+              exit 1
+            fi
+            echo "Waiting for API... ($timeout seconds left)"
+            timeout=$((timeout-1))
+            sleep 1
+          done
+          echo "API is ready!"
+
       - name: Run tests (spec + BDD)
         run: npm run test:all
         env:
           CI: true
+          WDIO_API_URL: http://localhost:3001/api
 
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-results
-          path: reports/allure-results
+          path: reports/allure-results/
+          if-no-files-found: warn
 
       - name: Generate Allure report
         if: always()
         run: |
           npx allure generate reports/allure-results --clean -o reports/allure-report || true
+          # Create a dummy report if generation fails
+          if [ ! -f reports/allure-report/index.html ]; then
+            mkdir -p reports/allure-report
+            echo "<html><body><h1>Test Run Failed</h1><p>Check job logs for details.</p></body></html>" > reports/allure-report/index.html
+          fi
 
       - name: Upload Allure report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-report
-          path: reports/allure-report
+          path: reports/allure-report/
+          if-no-files-found: warn
