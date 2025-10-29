@@ -1,151 +1,113 @@
-# 🧪 WDIO API Test Automation – RealWorld Backend
+# WDIO Project — API tests (Spec + BDD)
 
-This project contains a full **API test automation suite** built with **WebdriverIO**, **Mocha**, **Axios**, and **Allure reporting**.  
-It targets the [RealWorld backend API](https://github.com/gothinkster/realworld) and verifies core functionality including authentication, article CRUD, comments, and tags.
+This repository contains WebdriverIO-based API tests for a RealWorld-style backend.
+It includes both Mocha-style spec tests and Cucumber BDD features (step-definitions) that exercise authentication, articles, comments and tags.
 
----
+The tests target the API at: `http://localhost:3001/api` (make sure your API is running locally before running the suite).
 
-## 🚀 Project Overview
+## What you'll find here
 
-| Layer | Technology |
-|--------|-------------|
-| Test Framework | WebdriverIO (v9) |
-| Assertion Library | Mocha + Expect |
-| HTTP Client | Axios |
-| Reporting | Allure |
-| CI Ready | ✅ Compatible with GitHub Actions |
-| Language | JavaScript (Node.js) |
+- `features/` — Cucumber feature files and step-definitions (BDD tests)
+- `test/` — spec-style API tests
+- `features/step-definitions/common` — shared test context and centralized steps
+- `helpers/` — helper modules (auth helper, etc.)
+- `wdio.conf.bdd.cjs` — WDIO config for BDD runs
+- `wdio.conf.api.cjs` — WDIO config for API/spec runs
+- `reports/` — Allure report output (generated)
 
----
+## Prerequisites
 
-## 🧩 Folder Structure
+- Node.js (>= 18 recommended)
+- npm
+- A running backend API on `http://localhost:3001`
 
-wdio-project/ 
+## Install dependencies
 
-├── test/
-
-│ ├── api/
-
-│ │ ├── users.api.spec.js # User registration tests
-
-│ │ ├── login.api.spec.js # Login flow tests
-
-│ │ ├── articles.api.spec.js # Full CRUD tests for articles
-
-│ │ ├── comments.api.spec.js # Comment creation & validation
-
-│ │ └── tags.api.spec.js # Tag list retrieval
-
-│ └── helpers/
-
-│ └── auth.helper.js # Shared user/token setup
-
-│
-
-├── wdio.conf.api.cjs # WDIO config for API tests
-
-├── start-dev.ps1 # Script to start backend & run tests
-
-├── package.json # NPM scripts & dependencies
-
-└── reports/ # Allure test results (auto-generated)
-
-
----
-
-## ⚙️ Setup Instructions
-
-### 1️⃣ Install dependencies
-
-```bash
+```powershell
+npm ci
+# or
 npm install
+```
 
-Start backend (RealWorld API)
+## Useful NPM scripts
 
-Make sure the backend is running on http://localhost:3001
- before starting tests.
+These are defined in `package.json`:
 
-Or simply use the included script:
+- `npm run test:spec` — run spec-style API tests (`wdio.conf.api.cjs`)
+- `npm run test:bdd` — run the Cucumber BDD suite (`wdio.conf.bdd.cjs`)
+- `npm run test:all` — run both spec and BDD suites sequentially
+- `npm run report:allure` — generate and open Allure report from `reports/allure-results`
 
-.\start-dev.ps1
+Run the full BDD suite:
 
+```powershell
+npm run test:bdd
+```
 
-This script:
+Run a single feature (very handy when debugging):
 
-Starts the backend server in a minimized PowerShell window
+```powershell
+npx wdio run ./wdio.conf.bdd.cjs --spec ./features/api/comments.feature --logLevel debug
+```
 
-Waits a few seconds
+## Allure reporting
 
-Runs the WDIO API test suite
+After a run you can generate and open the Allure report:
 
-🧪 Run Tests
-Run all API tests
-npm run test:api
-
-Run a specific test file
-npx wdio run ./wdio.conf.api.cjs --spec ./test/api/articles.api.spec.js
-
-Run tests and generate report automatically
-npm run test:api:report
-
-📊 Allure Reporting
-Generate & open report
+```powershell
 npm run report:allure
+```
 
+Allure reads results from `reports/allure-results` and generates `reports/allure-report`.
 
-After generation, a browser window will open showing:
+## Test architecture notes
 
-Test results with duration and history
+- `features/step-definitions/common/context.js` exports a small shared test context and helpers (`setResponse`, `getResponse`, `setValue`, `getValue`) so step modules can share state reliably.
+- `features/step-definitions/common/status.steps.js` centralizes HTTP status assertions.
+- `features/step-definitions/common/auth.steps.js` provides a single `Given` for authenticated user flows (prevents ambiguous step definitions across modules).
 
-Console logs (e.g. created IDs, slugs, etc.)
+## Recent fixes & rationale
 
-Passed/Failed breakdown
+During stabilization work the following issues were found and addressed:
 
-🧱 Global Token Setup
+- GET `/articles/:slug/comments` requires authentication to return comments. Tests now include the `Authorization` header when fetching comments.
+- Article creation used by comment scenarios moved to per-scenario setup (`Before`) to ensure isolation and avoid leftover comments impacting subsequent scenarios.
+- Centralized status assertion and shared `context.js` helper to avoid duplicated logic and brittle cross-file state.
 
-A shared JWT token is generated automatically via:
+These changes fixed a failing comments feature where a POST returned a comment but a later unauthenticated GET returned an empty list.
 
-beforeSuite: async function () {
-  global.authToken = await getAuthToken();
-}
+## Debugging tips
 
+- Run a single feature with `--spec` and `--logLevel debug` to get detailed trace. Example:
 
+```powershell
+npx wdio run ./wdio.conf.bdd.cjs --spec ./features/api/comments.feature --logLevel debug
+```
+
+- `debug-comments.js` is a small helper script in the repo used during local debugging to reproduce the comment create/get flow outside WDIO:
+
+```powershell
+node debug-comments.js
+```
+
+Remove it if you don't want it in the repo.
+
+## CI suggestions
+
+- Use `npm ci` in CI for reproducible installs.
+- Run `npm run test:all` in a CI job and publish the Allure results as an artifact.
+- Consider limiting WDIO worker count in CI to reduce contention with the system under test.
+
+## Contributing
+
+- For test changes, create a branch and open a PR. Include a short description of the failure you fixed and why.
+- Prefer small, focused commits for test and config changes.
+
+## License
+
+ISC (set in `package.json`).
+
+---
+
+If you want, I can commit this README update and push it to `main` (or create a branch + PR). I can also remove `debug-comments.js` in a follow-up commit if you'd like it cleaned up.
 This allows all test suites to reuse the same authenticated session without re-login.
-
-🧰 PowerShell Helper
-
-start-dev.ps1
-Runs both backend & tests automatically:
-
-Start-Process powershell -ArgumentList "cd ../realworld-backend; npm run dev" -WindowStyle Minimized
-Start-Sleep -Seconds 5
-npx wdio run ./wdio.conf.api.cjs --no-cache
-
-🧾 NPM Scripts
-Command	Description
-npm run test:api	Run all API tests
-npm run test:api:report	Run tests + open Allure report
-npm run report:allure	Generate and open Allure report
-npm test	Default WebdriverIO UI test run (optional)
-✅ Covered Endpoints
-Area	Endpoint	Verified Scenarios
-Users	/api/users	Registration, duplicate emails
-Login	/api/users/login	Valid & invalid credentials
-Articles	/api/articles	Create, update, get, delete
-Comments	/api/articles/:slug/comments	Add, fetch (graceful handling), delete
-Tags	/api/tags	Retrieve tag list
-📦 CI/CD Integration
-
-This project supports GitHub Actions.
-To trigger tests automatically:
-
-Commit & push to GitHub
-
-Go to Actions → WDIO Tests
-
-Watch your pipeline execute the API suite & publish Allure results
-
-👨‍💻 Author
-
-Constantin Arseni
-📧 constantin.arseni@endava.com
