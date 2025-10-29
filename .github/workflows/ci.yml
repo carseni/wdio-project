@@ -1,4 +1,4 @@
-name: CI - Realworld Stack (Backend + UI + WDIO + Allure Pages + Seed)
+name: CI - Realworld Stack (Backend + UI + WDIO + Allure Pages)
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   e2e-tests:
+    name: e2e-tests-${{ github.ref_name }}-${{ github.run_number }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -27,15 +28,18 @@ jobs:
           --health-retries 10
 
     steps:
+      # 📥 Checkout WDIO project
       - name: Checkout WDIO project
         uses: actions/checkout@v4
 
+      # ⚙️ Node.js setup
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
+      # 🕒 Wait for DB readiness
       - name: Wait for Postgres
         run: |
           echo "Waiting for Postgres..."
@@ -48,7 +52,7 @@ jobs:
             sleep 2
           done
 
-      # ⚙️ Backend setup + migrations
+      # 🧩 Backend setup
       - name: Clone Backend
         run: |
           git clone https://github.com/carseni/realworld-backend.git realworld-backend
@@ -56,36 +60,7 @@ jobs:
           npm ci
           npx prisma generate
           npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
-
-      # 🌱 Seed database so Article tests work
-      - name: Seed database with test data
-        run: |
-          cd realworld-backend
-          echo "🌱 Seeding database with default user and tags..."
-          node -e "
-            import { PrismaClient } from '@prisma/client';
-            const prisma = new PrismaClient();
-            async function main() {
-              const user = await prisma.user.upsert({
-                where: { email: 'seed_user@mail.com' },
-                update: {},
-                create: {
-                  email: 'seed_user@mail.com',
-                  username: 'seed_user',
-                  password: '123456',
-                  bio: 'Seed user for CI tests',
-                },
-              });
-              await prisma.tag.createMany({
-                data: [{ name: 'seed' }, { name: 'test' }, { name: 'ci' }],
-                skipDuplicates: true,
-              });
-              console.log('✅ Seed complete:', user.email);
-            }
-            main().finally(() => prisma.$disconnect());
-          "
+          npm run build
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
@@ -98,7 +73,7 @@ jobs:
         env:
           PGPASSWORD: postgres
 
-      # 🚀 Start backend
+      # 🚀 Start backend API
       - name: Start Backend (port 3001)
         run: |
           cd realworld-backend
@@ -115,7 +90,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld
 
-      # 🎨 Frontend build (port 4100)
+      # 🎨 Frontend build (on 4100)
       - name: Clone Frontend
         run: |
           git clone https://github.com/carseni/realworld-ui.git realworld-ui
@@ -123,7 +98,7 @@ jobs:
           npm ci
           PORT=4100 npm run build
 
-      # 🧪 WDIO tests
+      # 🧪 Run WDIO tests
       - name: Run WDIO Tests (spec + BDD)
         run: |
           npm ci
@@ -132,7 +107,7 @@ jobs:
           CI: true
           API_URL: http://localhost:3001/api
 
-      # 📊 Allure results
+      # 📊 Upload Allure results
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
@@ -141,6 +116,7 @@ jobs:
           path: reports/allure-results/
           if-no-files-found: warn
 
+      # 🧱 Generate Allure report
       - name: Generate Allure report
         if: always()
         run: |
@@ -150,6 +126,7 @@ jobs:
             echo "<html><body><h1>Test Run Failed</h1><p>Check job logs for details.</p></body></html>" > reports/allure-report/index.html
           fi
 
+      # 💾 Upload HTML report as artifact
       - name: Upload Allure HTML report
         if: always()
         uses: actions/upload-artifact@v4
@@ -158,7 +135,7 @@ jobs:
           path: reports/allure-report/
           if-no-files-found: warn
 
-      # 🚀 Deploy to GitHub Pages
+      # 🌐 Deploy Allure report to GitHub Pages
       - name: Deploy Allure report to GitHub Pages
         if: always() && github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
@@ -168,7 +145,7 @@ jobs:
           publish_branch: gh-pages
           force_orphan: true
 
-      # 💬 PR comment with live report link
+      # 💬 Add PR comment with live Allure report
       - name: Comment on Pull Request with Allure Report
         if: ${{ github.event_name == 'pull_request' }}
         uses: marocchino/sticky-pull-request-comment@v2
