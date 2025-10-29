@@ -132,6 +132,7 @@ jobs:
           publish_dir: reports/allure-report
           publish_branch: gh-pages
           force_orphan: true
+          
 
       # 💬 Comment with Allure report link on PRs
       - name:  Comment on Pull Request with Allure Report
