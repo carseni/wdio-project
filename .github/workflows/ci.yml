@@ -1,4 +1,4 @@
-name: CI
+name: CI - Realworld App (Backend + WDIO Tests)
 
 on:
   push:
@@ -12,10 +12,19 @@ jobs:
     timeout-minutes: 60
 
     services:
-      mongodb:
-        image: mongo:4.4
+      postgres:
+        image: postgres:15
         ports:
-          - 27017:27017
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: realworld
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -24,64 +33,67 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: 20
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Clone and start API server
+      # 🧠 BACKEND
+      - name: Install backend dependencies
         run: |
-          # Clone the Conduit API implementation
-          git clone https://github.com/gothinkster/node-express-realworld-example-app.git api
-          cd api
-          npm install
-          # Set MongoDB URL and start API server
-          export MONGODB_URI="mongodb://localhost:27017/conduit"
-          npm start &
-          echo "Waiting for API server to be ready..."
-          timeout=30
-          until curl -s http://localhost:3001/api/tags > /dev/null; do
-            if [ $timeout -le 0 ]; then
-              echo "API failed to start"
-              cat npm-debug.log || true
-              exit 1
-            fi
-            echo "Waiting for API... ($timeout seconds left)"
-            timeout=$((timeout-1))
-            sleep 1
-          done
-          echo "API is ready!"
+          cd realworld-backend-main
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
 
+      - name: Start backend server
+        run: |
+          cd realworld-backend-main
+          npm start &
+          echo "Waiting for API to be ready..."
+          n=0
+          until [ $n -ge 20 ]; do
+            if curl -s http://localhost:3001/api/tags > /dev/null; then
+              echo "✅ API is up!"
+              break
+            fi
+            n=$((n+1))
+            echo "⏳ Waiting for API... ($n/20)"
+            sleep 3
+          done
+          if [ $n -ge 20 ]; then
+            echo "❌ API failed to start"
+            exit 1
+          fi
+
+      # 🧩 FRONTEND (optional)
+      - name: Install frontend dependencies
+        run: |
+          cd realworld-ui-main
+          npm ci
+          npm run build
+
+      # 🧪 WDIO TESTS (your script)
       - name: Run tests (spec + BDD)
-        run: npm run test:all
+        run: |
+          cd wdio-project-main
+          npm ci
+          npm run test:all
         env:
           CI: true
-          # The API runs on port 3000 by default
-          WDIO_API_URL: http://localhost:3001/api
+          API_URL: http://localhost:3001/api
 
+      # 📊 ALLURE REPORT
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-results
-          path: reports/allure-results/
+          path: wdio-project-main/reports/allure-results/
           if-no-files-found: warn
 
       - name: Generate Allure report
         if: always()
         run: |
+          cd wdio-project-main
           npx allure generate reports/allure-results --clean -o reports/allure-report || true
-          # Create a dummy report if generation fails
           if [ ! -f reports/allure-report/index.html ]; then
-            mkdir -p reports/allure-report
-            echo "<html><body><h1>Test Run Failed</h1><p>Check job logs for details.</p></body></html>" > reports/allure-report/index.html
-          fi
-
-      - name: Upload Allure report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-report
-          path: reports/allure-report/
-          if-no-files-found: warn
+            mkdi
