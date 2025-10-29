@@ -123,6 +123,35 @@ jobs:
           path: reports/allure-report/
           if-no-files-found: warn
 
+          # 🧮 Generate Shields.io summary badge JSON
+      - name: Generate Allure badge summary
+        if: always()
+        run: |
+          echo "📊 Creating shields-summary.json for badge..."
+          mkdir -p reports/allure-report/widgets
+          SUMMARY_FILE="reports/allure-report/widgets/summary.json"
+          BADGE_FILE="reports/allure-report/widgets/shields-summary.json"
+
+          if [ -f "$SUMMARY_FILE" ]; then
+            PASSED=$(jq '.statistic.passed' "$SUMMARY_FILE")
+            FAILED=$(jq '.statistic.failed' "$SUMMARY_FILE")
+            BROKEN=$(jq '.statistic.broken' "$SUMMARY_FILE")
+            COLOR="brightgreen"
+            if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ]; then
+              COLOR="red"
+            fi
+            jq -n \
+              --arg passed "$PASSED" \
+              --arg failed "$FAILED" \
+              --arg broken "$BROKEN" \
+              --arg color "$COLOR" \
+              '{schemaVersion: 1, label: "Allure Tests", message: ("passed: \($passed) | failed: \($failed) | broken: \($broken)"), color: $color}' \
+              > "$BADGE_FILE"
+            echo "✅ Badge JSON created at $BADGE_FILE"
+          else
+            echo "⚠️ No summary.json found, skipping badge generation."
+          fi
+
       # 🚀 Deploy Allure report to GitHub Pages
       - name: Deploy Allure report to GitHub Pages
         if: always()

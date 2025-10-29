@@ -111,3 +111,15 @@ ISC (set in `package.json`).
 
 If you want, I can commit this README update and push it to `main` (or create a branch + PR). I can also remove `debug-comments.js` in a follow-up commit if you'd like it cleaned up.
 This allows all test suites to reuse the same authenticated session without re-login.
+
+
+# WDIO Project – Realworld Stack Testing
+
+[![CI - Realworld Stack](https://github.com/carseni/wdio-project/actions/workflows/ci.yml/badge.svg)](https://github.com/carseni/wdio-project/actions/workflows/ci.yml)
+[![Allure Report](https://img.shields.io/badge/Allure-Report-5A20CB?logo=allure&logoColor=white)](https://carseni.github.io/wdio-project/)
+
+Automated end-to-end and API tests for the Realworld stack:
+- 🧩 Backend: Express + Prisma + PostgreSQL  
+- 🎨 Frontend: React  
+- 🤖 Tests: WebdriverIO (spec + BDD)  
+- 📊 Reporting: Allure + GitHub Pages  
