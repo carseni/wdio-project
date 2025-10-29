@@ -41,7 +41,7 @@ jobs:
           npm start &
           echo "Waiting for API server to be ready..."
           timeout=30
-          until curl -s http://localhost:3000/api/tags > /dev/null; do
+          until curl -s http://localhost:3001/api/tags > /dev/null; do
             if [ $timeout -le 0 ]; then
               echo "API failed to start"
               cat npm-debug.log || true
@@ -58,7 +58,7 @@ jobs:
         env:
           CI: true
           # The API runs on port 3000 by default
-          WDIO_API_URL: http://localhost:3000/api
+          WDIO_API_URL: http://localhost:3001/api
 
       - name: Upload Allure results
         if: always()
