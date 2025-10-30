@@ -2,7 +2,7 @@ import { Given, When, Then, BeforeAll, Before } from '@wdio/cucumber-framework';
 import axios from 'axios';
 import assert from 'assert';
 import testContext, { setResponse, getResponse, setValue } from '../common/context.js';
-import { registerOrLogin } from '../common/registerOrLogin.js';
+import { registerOrLogin } from '../../../helpers/registerOrLogin.js';
 
 const baseURL = 'http://localhost:3001/api';
 let token;

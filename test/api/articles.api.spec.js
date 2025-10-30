@@ -1,8 +1,22 @@
+const { registerOrLogin } = require('../../helpers/registerOrLogin.js');
+
 const axios = require('axios');
 describe('API - Articles CRUD', () => {
   const baseURL = 'http://localhost:3001/api';
   let token;
   let createdSlug;
+
+  before(async () => {
+  const unique = Date.now();
+  const email = `spec_articles_${unique}@mail.com`;
+  const password = 'password123';
+
+  const user = await registerOrLogin(email, password);
+  token = user.token;
+  global.authToken = token; // optional, keeps consistency with other files
+
+  console.log('🔑 Global token generated successfully for Articles:', !!token);
+});
 
   it('should create a new article successfully', async () => {
     const response = await axios.post(`${baseURL}/articles`, {
@@ -13,7 +27,7 @@ describe('API - Articles CRUD', () => {
         tagList: ['api', 'wdio'],
       },
     }, {
-      headers: { Authorization: `Token ${global.authToken}` },
+      headers: { Authorization: `Token ${token}` },
     });
 
     expect(response.status).toBe(201);
@@ -35,7 +49,7 @@ describe('API - Articles CRUD', () => {
         body: 'This article has been updated successfully!',
       },
     }, {
-      headers: { Authorization: `Token ${global.authToken}` },
+     headers: { Authorization: `Token ${token}` },
     });
 
     expect(response.status).toBe(200);
@@ -54,7 +68,7 @@ describe('API - Articles CRUD', () => {
 
   it('should delete the article successfully', async () => {
     const response = await axios.delete(`${baseURL}/articles/${createdSlug}`, {
-      headers: { Authorization: `Token ${global.authToken}` },
+      headers: { Authorization: `Token ${token}` },
     });
     expect(response.status).toBe(204);
   });

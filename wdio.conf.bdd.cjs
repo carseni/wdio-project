@@ -1,3 +1,13 @@
+const { waitForBackendReady } = require('./features/step-definitions/common/waitForPort.js');
+
+export const config = {
+  // ... existing settings ...
+  onPrepare: async function () {
+    console.log('⏳ Waiting for backend (port 3001) to be ready...');
+    await waitForBackendReady();
+  },
+};
+
 exports.config = {
   runner: 'local',
   framework: 'cucumber',

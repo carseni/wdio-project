@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
- "scripts": {
-  "clean:allure": "rmdir /s /q reports\\allure-results 2>nul || true",
-  "test:spec": "npm run clean:allure && wdio run ./wdio.conf.api.cjs",
-  "test:bdd": "npm run clean:allure && wdio run ./wdio.conf.bdd.cjs",
-  "test:all": "npm run test:spec && npm run test:bdd",
-  "report:allure": "allure generate reports/allure-results --clean && allure open"
-},
+  "scripts": {
+    "clean:allure": "rimraf reports/allure-results",
+    "test:spec": "npm run clean:allure && wdio run ./wdio.conf.api.cjs",
+    "test:bdd": "npm run clean:allure && wdio run ./wdio.conf.bdd.cjs",
+    "test:all": "npm run test:spec && npm run test:bdd",
+    "report:allure": "allure generate reports/allure-results --clean && allure open"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -25,6 +25,7 @@
     "allure-commandline": "^2.34.1",
     "cucumber": "^6.0.7",
     "devtools": "^8.42.0",
+    "rimraf": "^6.0.1",
     "webdriverio": "^9.20.0"
   },
   "dependencies": {
