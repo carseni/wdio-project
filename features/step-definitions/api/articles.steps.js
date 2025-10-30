@@ -2,6 +2,7 @@ import { Given, When, Then, BeforeAll } from '@wdio/cucumber-framework';
 import axios from 'axios';
 import assert from 'assert';
 import testContext, { setResponse, getResponse, clearResponse, setValue } from '../common/context.js';
+import { registerOrLogin } from '../common/registerOrLogin.js';
 
 const baseURL = 'http://localhost:3001/api';
 let token;
@@ -13,20 +14,16 @@ BeforeAll(async () => {
   const email = `bdd_articles_${unique}@mail.com`;
   const password = 'password123';
 
-  const register = await axios.post(`${baseURL}/users`, {
-    user: {
-      username: `bdduser_${unique}`,
-      email,
-      password,
-    },
-  });
-
-  token = register.data.user.token;
-  // publish token into shared context so the common Given can find it
-  setValue('token_articles', token);
-  console.log('🔑 Shared token for all article scenarios');
+  try {
+    const user = await registerOrLogin(email, password);
+    token = user.token;
+    setValue('token_articles', token);
+    console.log('🔑 Shared token for all article scenarios');
+  } catch (err) {
+    console.error('Failed to create/login shared user for articles BeforeAll:', err.message || err);
+    throw err;
+  }
 });
-
 
 // ---------- Create ----------
 When('I create a new article', async () => {

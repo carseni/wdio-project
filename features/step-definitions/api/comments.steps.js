@@ -2,6 +2,7 @@ import { Given, When, Then, BeforeAll, Before } from '@wdio/cucumber-framework';
 import axios from 'axios';
 import assert from 'assert';
 import testContext, { setResponse, getResponse, setValue } from '../common/context.js';
+import { registerOrLogin } from '../common/registerOrLogin.js';
 
 const baseURL = 'http://localhost:3001/api';
 let token;
@@ -14,14 +15,15 @@ BeforeAll(async () => {
   const email = `bdd_comments_${unique}@mail.com`;
   const password = 'password123';
 
-  const register = await axios.post(`${baseURL}/users`, {
-    user: { username: `bdduser_${unique}`, email, password },
-  });
-
-  token = register.data.user.token;
-  // publish token into shared context so the common Given can find it
-  setValue('token_comments', token);
-  console.log('🔑 Shared token for all comment scenarios');
+  try {
+    const user = await registerOrLogin(email, password);
+    token = user.token;
+    setValue('token_comments', token);
+    console.log('🔑 Shared token for all comment scenarios');
+  } catch (err) {
+    console.error('Failed to create/login shared user for comments BeforeAll:', err.message || err);
+    throw err;
+  }
 });
 
 // Create a fresh article per scenario to keep comment lists isolated

@@ -1,7 +1,8 @@
 import { Given, When, Then, BeforeAll } from '@wdio/cucumber-framework';
 import axios from 'axios';
 import assert from 'assert';
-import testContext, { setResponse, getResponse } from '../common/context.js';
+import testContext, { setResponse, getResponse, setValue } from '../common/context.js';
+import { registerOrLogin } from '../common/registerOrLogin.js';
 
 const baseURL = 'http://localhost:3001/api';
 let credentials;
@@ -12,14 +13,13 @@ BeforeAll(async () => {
   const password = 'password123';
   credentials = { email, password };
 
-  // register a new user; surface clear error if server isn't available
   try {
-    await axios.post(`${baseURL}/users`, {
-      user: { username: `bdduser_${unique}`, email, password },
-    });
-    console.log('🔑 Shared user for login scenarios');
+    const user = await registerOrLogin(email, password);
+    // optionally publish token for other step files if they look for it
+    if (user?.token) setValue('token_login', user.token);
+    console.log('🔑 Shared user for login scenarios — token present:', !!user?.token);
   } catch (err) {
-    console.error('Failed to create shared user in BeforeAll:', err.code || err.message);
+    console.error('Failed to ensure shared user in BeforeAll:', err.message || err);
     // rethrow so Cucumber/Wdio marks the hook/scenarios as failed with a clear message
     throw err;
   }
