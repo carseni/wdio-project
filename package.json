@@ -1,15 +1,16 @@
 {
   "name": "wdio-project",
   "version": "1.0.0",
+  "type": "commonjs",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "clean:allure": "rimraf reports/allure-results",
-    "test:spec": "npm run clean:allure && wdio run ./wdio.conf.api.cjs",
-    "test:bdd": "npm run clean:allure && wdio run ./wdio.conf.bdd.cjs",
-    "test:all": "npm run test:spec && npm run test:bdd",
-    "report:allure": "allure generate reports/allure-results --clean && allure open"
-  },
+  "clean:allure": "rimraf reports/allure-results",
+  "test:spec": "wdio run ./wdio.conf.api.cjs",
+  "test:bdd": "wdio run ./wdio.conf.bdd.cjs",
+  "test:all": "npm run clean:allure && npm run test:spec && npm run test:bdd",
+  "report:allure": "allure generate reports/allure-results --clean && allure open"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
